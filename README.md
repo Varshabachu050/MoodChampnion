@@ -80,7 +80,7 @@ Mood-Health-App
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone https://github.com/Varshabachu050/MoodChampnion.git
+git clone https://github.com/Varshabachu050/MoodCompanion.git
 ```
 
 ### 2️⃣ Navigate to the project folder
