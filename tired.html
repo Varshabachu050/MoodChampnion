@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.game-wrapper{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:15px;
+}
+
+/* title */
+
+.title{
+font-size:28px;
+font-weight:bold;
+color:#2c3e50;
+}
+
+/* stats bar */
+
+.stats{
+display:flex;
+gap:25px;
+background:white;
+padding:10px 25px;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+font-weight:bold;
+font-size:18px;
+}
+
+/* toolbar */
+
+.toolbar{
+background:white;
+padding:15px;
+border-radius:12px;
+box-shadow:0 4px 10px rgba(0,0,0,0.2);
+text-align:center;
+}
+
+/* canvas */
+
+canvas{
+background:white;
+border:3px solid #3498db;
+border-radius:10px;
+cursor:crosshair;
+}
+
+/* buttons */
+
+button{
+padding:8px 14px;
+margin:5px;
+border:none;
+border-radius:6px;
+background:#3498db;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#2980b9;
+}
+
+/* color palette */
+
+.color{
+width:25px;
+height:25px;
+border-radius:50%;
+display:inline-block;
+margin:4px;
+cursor:pointer;
+border:2px solid white;
+}
+
+/* quote */
+
+#quote{
+margin-top:10px;
+font-size:22px;
+font-weight:bold;
+color:#34495e;
+}
+
+/* background */
+
+body{
+background:linear-gradient(135deg,#c2e9fb,#a1c4fd);
+}
+
+</style>
+
+<div class="game-wrapper">
+
+<div class="title">🎨 Relax & Paint</div>
+
+<div class="stats">
+<div id="timer">⏱ Time: 0</div>
+<div id="score">🏆 Score: 0</div>
+</div>
+
+<div class="toolbar">
+
+<label>Set Time:</label> <input type="number" id="timeLimit" value="30" min="10">
+
+<button onclick="startGame()">Start</button>
+
+<br><br>
+
+<!-- Colors -->
+
+<div class="color" style="background:red" onclick="setColor('red')"></div>
+<div class="color" style="background:blue" onclick="setColor('blue')"></div>
+<div class="color" style="background:green" onclick="setColor('green')"></div>
+<div class="color" style="background:yellow" onclick="setColor('yellow')"></div>
+<div class="color" style="background:purple" onclick="setColor('purple')"></div>
+<div class="color" style="background:black" onclick="setColor('black')"></div>
+<div class="color" style="background:orange" onclick="setColor('orange')"></div>
+<div class="color" style="background:pink" onclick="setColor('pink')"></div>
+
+<br><br>
+
+<label>Brush Size:</label> <input type="range" id="brushSize" min="2" max="20" value="5">
+
+<br><br>
+
+<button onclick="clearCanvas()">🧹 Clear</button> <button onclick="saveArt()">💾 Save</button> <button onclick="location.href='/main'">⬅ Back</button>
+
+</div>
+
+<canvas id="paint" width="700" height="450"></canvas>
+
+<div id="quote"></div>
+
+</div>
+
+<script>
+
+const canvas=document.getElementById("paint");
+const ctx=canvas.getContext("2d");
+
+let painting=false;
+let color="black";
+let score=0;
+let timeLeft=0;
+
+let timerInterval;
+let gameActive=false;
+
+function setColor(c){
+color=c;
+}
+
+function startGame(){
+
+score=0;
+document.getElementById("score").innerText="🏆 Score: 0";
+
+timeLeft=parseInt(document.getElementById("timeLimit").value);
+
+if(isNaN(timeLeft)||timeLeft<10) return;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+gameActive=true;
+
+clearInterval(timerInterval);
+
+timerInterval=setInterval(()=>{
+
+timeLeft--;
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+if(timeLeft<=0){
+endGame();
+}
+
+},1000);
+
+}
+
+function startPosition(e){
+
+if(!gameActive) return;
+
+painting=true;
+draw(e);
+
+}
+
+function endPosition(){
+
+painting=false;
+ctx.beginPath();
+
+}
+
+function draw(e){
+
+if(!painting||!gameActive) return;
+
+const size=document.getElementById("brushSize").value;
+
+ctx.lineWidth=size;
+ctx.lineCap="round";
+ctx.strokeStyle=color;
+
+ctx.lineTo(e.offsetX,e.offsetY);
+ctx.stroke();
+ctx.beginPath();
+ctx.moveTo(e.offsetX,e.offsetY);
+
+score++;
+
+document.getElementById("score").innerText="🏆 Score: "+score;
+
+}
+
+function clearCanvas(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+}
+
+function saveArt(){
+
+const link=document.createElement("a");
+link.download="my_painting.png";
+link.href=canvas.toDataURL();
+link.click();
+
+}
+
+function endGame(){
+
+gameActive=false;
+clearInterval(timerInterval);
+
+fetch("/submit",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+mood:"tired",
+score:score
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("quote").innerText=
+"🎨 Great creativity! Score: "+score+" | "+data.quote;
+
+});
+
+}
+
+canvas.addEventListener("mousedown",startPosition);
+canvas.addEventListener("mouseup",endPosition);
+canvas.addEventListener("mousemove",draw);
+
+</script>
+
+{% endblock %}

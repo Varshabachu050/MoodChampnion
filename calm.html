@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.game-wrapper{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:15px;
+}
+
+/* title */
+
+.title{
+font-size:28px;
+font-weight:bold;
+color:#2c3e50;
+}
+
+/* stats bar */
+
+.stats{
+display:flex;
+gap:25px;
+background:white;
+padding:10px 25px;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+font-weight:bold;
+}
+
+/* controls */
+
+.controls{
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+/* grid */
+
+.grid{
+display:grid;
+grid-template-columns:repeat(4,90px);
+gap:12px;
+justify-content:center;
+margin-top:10px;
+}
+
+/* cards */
+
+.card{
+width:90px;
+height:90px;
+background:#3498db;
+cursor:pointer;
+font-size:35px;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+border-radius:12px;
+transition:transform 0.3s, background 0.3s;
+box-shadow:0 4px 10px rgba(0,0,0,0.25);
+}
+
+.card:hover{
+transform:scale(1.05);
+}
+
+.card.flipped{
+background:#2ecc71;
+transform:rotateY(180deg);
+}
+
+/* background */
+
+body{
+background:linear-gradient(135deg,#a8edea,#fed6e3);
+}
+
+/* quote */
+
+#quote{
+margin-top:10px;
+font-size:20px;
+font-weight:bold;
+color:#2c3e50;
+}
+
+</style>
+
+<div class="game-wrapper">
+
+<div class="title">🧠 Memory Flip Game</div>
+
+<div class="stats">
+<div id="timer">⏱ Time: 0</div>
+<div id="score">🏆 Score: 0</div>
+<div id="matches">🧩 Matches: 0</div>
+</div>
+
+<div class="controls">
+<label>Set Time:</label>
+<input type="number" id="timeLimit" value="30" min="10">
+<button onclick="startGame()">Start Game</button>
+<button onclick="location.href='/main'">⬅ Back</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div id="quote"></div>
+
+</div>
+
+<script>
+
+const baseEmojis=["🍀","🍀","🌸","🌸","⭐","⭐","🌈","🌈"];
+
+let emojis=[];
+let firstCard=null;
+let secondCard=null;
+
+let score=0;
+let matches=0;
+let timeLeft=0;
+
+let timerInterval;
+let gameActive=false;
+
+function shuffle(array){
+return array.sort(()=>0.5-Math.random());
+}
+
+function startGame(){
+
+document.getElementById("grid").innerHTML="";
+
+score=0;
+matches=0;
+
+document.getElementById("score").innerText="🏆 Score: 0";
+document.getElementById("matches").innerText="🧩 Matches: 0";
+document.getElementById("quote").innerText="";
+
+timeLeft=parseInt(document.getElementById("timeLimit").value);
+
+if(isNaN(timeLeft)||timeLeft<10) return;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+emojis=shuffle([...baseEmojis]);
+
+emojis.forEach((emoji)=>{
+
+const card=document.createElement("div");
+card.className="card";
+
+card.dataset.emoji=emoji;
+
+card.onclick=()=>flipCard(card);
+
+document.getElementById("grid").appendChild(card);
+
+});
+
+gameActive=true;
+
+clearInterval(timerInterval);
+
+timerInterval=setInterval(()=>{
+
+timeLeft--;
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+if(timeLeft<=0){
+endGame();
+}
+
+},1000);
+
+}
+
+function flipCard(card){
+
+if(!gameActive) return;
+
+if(card.classList.contains("flipped")) return;
+
+card.innerText=card.dataset.emoji;
+card.classList.add("flipped");
+
+if(!firstCard){
+
+firstCard=card;
+
+}else{
+
+secondCard=card;
+
+if(firstCard.dataset.emoji===secondCard.dataset.emoji){
+
+score+=10;
+matches++;
+
+document.getElementById("score").innerText="🏆 Score: "+score;
+document.getElementById("matches").innerText="🧩 Matches: "+matches;
+
+firstCard=null;
+secondCard=null;
+
+if(matches===4){
+endGame();
+}
+
+}else{
+
+setTimeout(()=>{
+
+firstCard.innerText="";
+secondCard.innerText="";
+
+firstCard.classList.remove("flipped");
+secondCard.classList.remove("flipped");
+
+firstCard=null;
+secondCard=null;
+
+},800);
+
+}
+
+}
+
+}
+
+function endGame(){
+
+gameActive=false;
+
+clearInterval(timerInterval);
+
+fetch("/submit",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+mood:"calm",
+score:score
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("quote").innerText=
+"🧘 Final Score: "+score+" | "+data.quote;
+
+});
+
+}
+
+</script>
+
+{% endblock %}

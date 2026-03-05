@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.game-wrapper{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:15px;
+}
+
+/* title */
+
+.title{
+font-size:28px;
+font-weight:bold;
+color:#c2185b;
+}
+
+/* stats bar */
+
+.stats{
+display:flex;
+gap:25px;
+background:white;
+padding:10px 25px;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+font-weight:bold;
+font-size:18px;
+}
+
+/* controls */
+
+.controls{
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+/* hearts */
+
+.heart{
+position:absolute;
+font-size:36px;
+cursor:pointer;
+animation:fall linear forwards;
+transition:transform 0.2s;
+}
+
+.heart:hover{
+transform:scale(1.2);
+}
+
+@keyframes fall{
+from{top:-60px;}
+to{top:100vh;}
+}
+
+.pop{
+animation:pop 0.3s ease-out;
+}
+
+@keyframes pop{
+0%{transform:scale(1);}
+50%{transform:scale(1.6);}
+100%{transform:scale(0);}
+}
+
+/* message popup */
+
+#message{
+position:fixed;
+bottom:70px;
+left:50%;
+transform:translateX(-50%);
+background:white;
+padding:15px 25px;
+border-radius:15px;
+font-size:18px;
+box-shadow:0 6px 15px rgba(0,0,0,0.2);
+display:none;
+}
+
+/* quote */
+
+#quote{
+margin-top:10px;
+font-size:22px;
+font-weight:bold;
+color:#2c3e50;
+}
+
+/* background */
+
+body{
+background:linear-gradient(135deg,#fbc2eb,#a6c1ee);
+}
+
+</style>
+
+<div class="game-wrapper">
+
+<div class="title">💖 Catch the Kind Hearts</div>
+
+<div class="stats">
+<div id="timer">⏱ Time: 0</div>
+<div id="score">🏆 Score: 0</div>
+<div id="combo">⚡ Combo: x1</div>
+</div>
+
+<div class="controls">
+<label>Set Time:</label>
+<input type="number" id="timeLimit" value="25" min="10">
+<button onclick="startGame()">Start Game</button>
+<button onclick="location.href='/main'">⬅ Back</button>
+</div>
+
+<div id="message"></div>
+<div id="quote"></div>
+
+</div>
+
+<audio autoplay loop>
+<source src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b5d63.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+
+let score=0;
+let combo=1;
+let lastClick=0;
+let timeLeft=0;
+
+let timerInterval;
+let heartInterval;
+let gameActive=false;
+
+const messages=[
+"You are not alone ❤️",
+"You matter more than you know 🌟",
+"Someone cares about you 🤗",
+"You are stronger than you think 💪",
+"Better days are coming 🌈",
+"You deserve happiness 💖",
+"Take a deep breath 🌸",
+"You are important in this world ✨"
+];
+
+function createHeart(){
+
+if(!gameActive) return;
+
+const heart=document.createElement("div");
+heart.className="heart";
+heart.innerText="💖";
+
+heart.style.left=Math.random()*(window.innerWidth-40)+"px";
+
+let speed=6-Math.min(score*0.05,2);
+heart.style.animationDuration=speed+"s";
+
+heart.onclick=function(){
+
+const now=Date.now();
+
+if(now-lastClick<800){
+combo++;
+}else{
+combo=1;
+}
+
+lastClick=now;
+
+score+=combo;
+
+document.getElementById("score").innerText="🏆 Score: "+score;
+document.getElementById("combo").innerText="⚡ Combo: x"+combo;
+
+const msg=messages[Math.floor(Math.random()*messages.length)];
+const msgBox=document.getElementById("message");
+
+msgBox.innerText=msg;
+msgBox.style.display="block";
+
+setTimeout(()=>{
+msgBox.style.display="none";
+},2000);
+
+heart.classList.add("pop");
+
+setTimeout(()=>{
+heart.remove();
+},200);
+
+};
+
+document.body.appendChild(heart);
+
+setTimeout(()=>{
+heart.remove();
+},7000);
+
+}
+
+function startGame(){
+
+document.querySelectorAll(".heart").forEach(h=>h.remove());
+
+score=0;
+combo=1;
+lastClick=0;
+
+document.getElementById("score").innerText="🏆 Score: 0";
+document.getElementById("combo").innerText="⚡ Combo: x1";
+document.getElementById("quote").innerText="";
+
+timeLeft=parseInt(document.getElementById("timeLimit").value);
+
+if(isNaN(timeLeft)||timeLeft<10) return;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+gameActive=true;
+
+clearInterval(timerInterval);
+clearInterval(heartInterval);
+
+timerInterval=setInterval(()=>{
+
+timeLeft--;
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+if(timeLeft<=0){
+endGame();
+}
+
+},1000);
+
+heartInterval=setInterval(createHeart,700);
+
+}
+
+function endGame(){
+
+gameActive=false;
+
+clearInterval(timerInterval);
+clearInterval(heartInterval);
+
+document.querySelectorAll(".heart").forEach(h=>h.remove());
+
+fetch("/submit",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+mood:"lonely",
+score:score
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("quote").innerText=
+"💖 Final Score: "+score+" | "+data.quote;
+
+});
+
+}
+
+</script>
+
+{% endblock %}

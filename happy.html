@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.game-wrapper{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:15px;
+}
+
+/* title */
+
+.title{
+font-size:28px;
+font-weight:bold;
+color:#c0392b;
+}
+
+/* stats bar */
+
+.stats{
+display:flex;
+gap:25px;
+background:white;
+padding:10px 25px;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+font-weight:bold;
+font-size:18px;
+}
+
+/* controls */
+
+.controls{
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+/* balloons */
+
+.balloon{
+position:absolute;
+width:60px;
+height:80px;
+border-radius:50%;
+cursor:pointer;
+animation:floatUp linear forwards;
+}
+
+@keyframes floatUp{
+from{top:100vh;}
+to{top:-120px;}
+}
+
+.pop{
+transform:scale(1.4);
+opacity:0;
+transition:0.2s;
+}
+
+/* background */
+
+body{
+background:linear-gradient(135deg,#ffecd2,#fcb69f);
+}
+
+/* quote */
+
+#quote{
+margin-top:15px;
+font-size:22px;
+font-weight:bold;
+color:darkblue;
+}
+
+</style>
+
+<div class="game-wrapper">
+
+<div class="title">🎈 Pop the Balloons!</div>
+
+<div class="stats">
+<div id="timer">⏱ Time: 0</div>
+<div id="score">🏆 Score: 0</div>
+<div id="combo">⚡ Combo: x1</div>
+</div>
+
+<div class="controls">
+<label>Set Time:</label>
+<input type="number" id="timeLimit" value="20" min="5">
+<button onclick="startGame()">Start Game</button>
+<button onclick="location.href='/main'">⬅ Back</button>
+</div>
+
+<div id="quote"></div>
+
+</div>
+
+<script>
+
+let score=0;
+let combo=1;
+let lastPop=0;
+let timeLeft=0;
+
+let timerInterval;
+let balloonInterval;
+let gameActive=false;
+
+function randomColor(){
+const colors=["#ff4d4d","#4da6ff","#66ff66","#ff66cc","#ffcc00"];
+return colors[Math.floor(Math.random()*colors.length)];
+}
+
+function createBalloon(){
+
+if(!gameActive) return;
+
+const balloon=document.createElement("div");
+balloon.className="balloon";
+
+balloon.style.left=Math.random()*(window.innerWidth-60)+"px";
+balloon.style.background=randomColor();
+
+let speed=5-Math.min(score*0.05,2);
+balloon.style.animationDuration=speed+"s";
+
+balloon.onclick=()=>{
+
+const now=Date.now();
+
+if(now-lastPop<800){
+combo++;
+}else{
+combo=1;
+}
+
+lastPop=now;
+
+score+=combo;
+
+document.getElementById("score").innerText="🏆 Score: "+score;
+document.getElementById("combo").innerText="⚡ Combo: x"+combo;
+
+balloon.classList.add("pop");
+
+setTimeout(()=>balloon.remove(),200);
+
+};
+
+document.body.appendChild(balloon);
+
+setTimeout(()=>balloon.remove(),7000);
+
+}
+
+function startGame(){
+
+document.querySelectorAll(".balloon").forEach(b=>b.remove());
+
+score=0;
+combo=1;
+lastPop=0;
+
+document.getElementById("score").innerText="🏆 Score: 0";
+document.getElementById("combo").innerText="⚡ Combo: x1";
+document.getElementById("quote").innerText="";
+
+timeLeft=parseInt(document.getElementById("timeLimit").value);
+
+if(isNaN(timeLeft)||timeLeft<5) return;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+gameActive=true;
+
+clearInterval(timerInterval);
+clearInterval(balloonInterval);
+
+timerInterval=setInterval(()=>{
+
+timeLeft--;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+if(timeLeft<=0){
+endGame();
+}
+
+},1000);
+
+balloonInterval=setInterval(createBalloon,700);
+
+}
+
+function endGame(){
+
+gameActive=false;
+
+clearInterval(timerInterval);
+clearInterval(balloonInterval);
+
+document.querySelectorAll(".balloon").forEach(b=>b.remove());
+
+fetch("/submit",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+mood:"happy",
+score:score
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("quote").innerText=
+"🏆 Final Score: "+score+" | "+data.quote;
+
+});
+
+}
+
+</script>
+
+{% endblock %}

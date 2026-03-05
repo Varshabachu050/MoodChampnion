@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.game-wrapper{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:15px;
+}
+
+/* title */
+
+.title{
+font-size:28px;
+font-weight:bold;
+color:#34495e;
+}
+
+/* stats bar */
+
+.stats{
+display:flex;
+gap:25px;
+background:white;
+padding:10px 25px;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+font-weight:bold;
+font-size:18px;
+}
+
+/* controls */
+
+.controls{
+display:flex;
+gap:10px;
+align-items:center;
+}
+
+/* question */
+
+#question{
+font-size:26px;
+font-weight:bold;
+margin-top:10px;
+color:#2c3e50;
+}
+
+/* bubbles */
+
+.bubble{
+position:absolute;
+width:70px;
+height:70px;
+border-radius:50%;
+background:#74b9ff;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:20px;
+font-weight:bold;
+cursor:pointer;
+animation:float linear forwards;
+}
+
+@keyframes float{
+from{top:100vh;}
+to{top:-100px;}
+}
+
+.pop{
+transform:scale(1.3);
+opacity:0;
+transition:0.2s;
+}
+
+/* quote */
+
+#quote{
+margin-top:15px;
+font-size:22px;
+font-weight:bold;
+color:#2c3e50;
+}
+
+/* background */
+
+body{
+background:linear-gradient(#dfe9f3,#ffffff);
+}
+
+</style>
+
+<div class="game-wrapper">
+
+<div class="title">➕ Math Bubbles</div>
+
+<div class="stats">
+<div id="timer">⏱ Time: 0</div>
+<div id="score">🏆 Score: 0</div>
+<div id="combo">⚡ Combo: x1</div>
+</div>
+
+<div class="controls">
+<label>Set Time:</label>
+<input type="number" id="timeLimit" value="25" min="10">
+<button onclick="startGame()">Start Game</button>
+<button onclick="location.href='/main'">⬅ Back</button>
+</div>
+
+<div id="question"></div>
+
+<div id="quote"></div>
+
+</div>
+
+<script>
+
+let score=0;
+let combo=1;
+let correctAnswer=0;
+let timeLeft=0;
+
+let timerInterval;
+let gameActive=false;
+
+function generateQuestion(){
+
+const a=Math.floor(Math.random()*10)+1;
+const b=Math.floor(Math.random()*10)+1;
+
+correctAnswer=a+b;
+
+document.getElementById("question").innerText=
+"Solve: "+a+" + "+b;
+
+}
+
+function createBubble(value){
+
+const bubble=document.createElement("div");
+bubble.className="bubble";
+bubble.innerText=value;
+
+bubble.style.left=Math.random()*(window.innerWidth-80)+"px";
+
+let speed=6-Math.min(score*0.05,2);
+bubble.style.animationDuration=speed+"s";
+
+bubble.onclick=function(){
+
+if(!gameActive) return;
+
+if(value===correctAnswer){
+
+combo++;
+score+=combo;
+
+document.getElementById("score").innerText="🏆 Score: "+score;
+document.getElementById("combo").innerText="⚡ Combo: x"+combo;
+
+bubble.classList.add("pop");
+
+setTimeout(()=>bubble.remove(),200);
+
+removeBubbles();
+generateQuestion();
+generateBubbles();
+
+}else{
+
+combo=1;
+document.getElementById("combo").innerText="⚡ Combo: x1";
+
+}
+
+};
+
+document.body.appendChild(bubble);
+
+setTimeout(()=>bubble.remove(),7000);
+
+}
+
+function generateBubbles(){
+
+const answers=[correctAnswer];
+
+while(answers.length<4){
+
+const wrong=correctAnswer+Math.floor(Math.random()*6)-3;
+
+if(!answers.includes(wrong)&&wrong>0){
+answers.push(wrong);
+}
+
+}
+
+answers.sort(()=>Math.random()-0.5);
+
+answers.forEach(ans=>createBubble(ans));
+
+}
+
+function removeBubbles(){
+document.querySelectorAll(".bubble").forEach(b=>b.remove());
+}
+
+function startGame(){
+
+removeBubbles();
+
+score=0;
+combo=1;
+
+document.getElementById("score").innerText="🏆 Score: 0";
+document.getElementById("combo").innerText="⚡ Combo: x1";
+document.getElementById("quote").innerText="";
+
+timeLeft=parseInt(document.getElementById("timeLimit").value);
+
+if(isNaN(timeLeft)||timeLeft<10) return;
+
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+gameActive=true;
+
+generateQuestion();
+generateBubbles();
+
+clearInterval(timerInterval);
+
+timerInterval=setInterval(()=>{
+
+timeLeft--;
+document.getElementById("timer").innerText="⏱ Time: "+timeLeft;
+
+if(timeLeft<=0){
+endGame();
+}
+
+},1000);
+
+}
+
+function endGame(){
+
+gameActive=false;
+
+removeBubbles();
+clearInterval(timerInterval);
+
+fetch("/submit",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+mood:"sad",
+score:score
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("quote").innerText=
+"🌟 Final Score: "+score+" | "+data.quote;
+
+});
+
+}
+
+</script>
+
+{% endblock %}
